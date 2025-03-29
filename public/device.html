@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalhes do Dispositivo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .online {
+            background-color: #4CAF50;
+        }
+        .offline {
+            background-color: #F44336;
+        }
+        .status-text {
+            display: flex;
+            align-items: center;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+        .device-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .device-title {
+            margin: 0;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #555;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #007BFF;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background-color: #218838;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top-color: #007BFF;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← Voltar para lista de dispositivos</a>
+        
+        <div id="loading" style="text-align: center; padding: 40px;">
+            <div class="loading"></div>
+            <p>Carregando dados do dispositivo...</p>
+        </div>
+        
+        <div id="device-details" style="display: none;">
+            <div class="device-header">
+                <h1 id="device-name" class="device-title">Dispositivo</h1>
+                <button id="check-btn" class="btn btn-success">Verificar Agora</button>
+            </div>
+            
+            <div class="card">
+                <div id="status-indicator" class="status-text">
+                    <span class="status-indicator offline"></span>
+                    Offline
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">IP:</span>
+                    <span id="device-ip">-</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Ping:</span>
+                    <span id="ping-time">-</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Última verificação:</span>
+                    <span id="last-checked">-</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Visto por último:</span>
+                    <span id="last-seen">-</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Resposta Ping:</span>
+                    <span id="ping-status">-</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Serviço Web:</span>
+                    <span id="service-status">-</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Adicionado em:</span>
+                    <span id="date-added">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Obter ID do dispositivo da URL
+        const deviceId = window.location.pathname.split('/').pop();
+        
+        // Elementos DOM frequentemente usados
+        const loadingElement = document.getElementById('loading');
+        const deviceDetails = document.getElementById('device-details');
+        
+        // Atributos do dispositivo que serão atualizados
+        const deviceName = document.getElementById('device-name');
+        const deviceIp = document.getElementById('device-ip');
+        const statusIndicator = document.getElementById('status-indicator');
+        const pingTime = document.getElementById('ping-time');
+        const lastChecked = document.getElementById('last-checked');
+        const lastSeen = document.getElementById('last-seen');
+        const pingStatus = document.getElementById('ping-status');
+        const serviceStatus = document.getElementById('service-status');
+        const dateAdded = document.getElementById('date-added');
+        
+        // Botão de verificar
+        const checkBtn = document.getElementById('check-btn');
+        checkBtn.addEventListener('click', checkDevice);
+        
+        // Função para formatar data e hora
+        function formatDateTime(dateString) {
+            if (!dateString) return 'Nunca';
+            const date = new Date(dateString);
+            return date.toLocaleString('pt-BR');
+        }
+        
+        // Função para calcular tempo decorrido
+        function timeAgo(dateString) {
+            if (!dateString) return 'Nunca';
+            
+            const date = new Date(dateString);
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000); // diferença em segundos
+            
+            if (diff < 60) return `${diff} segundos atrás`;
+            if (diff < 3600) return `${Math.floor(diff / 60)} minutos atrás`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)} horas atrás`;
+            return `${Math.floor(diff / 86400)} dias atrás`;
+        }
+        
+        // Função para atualizar informações do dispositivo
+        function updateDeviceInfo() {
+            loadingElement.style.display = 'block';
+            deviceDetails.style.display = 'none';
+            
+            fetch(`/api/device/${deviceId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            window.location.href = '/';
+                            return;
+                        }
+                        throw new Error('Erro ao obter dados do dispositivo');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Atualizar o título da página
+                    document.title = `${data.device.name} - Detalhes`;
+                    
+                    // Atualizar informações do dispositivo
+                    deviceName.textContent = data.device.name;
+                    deviceIp.textContent = data.device.ip;
+                    
+                    // Atualizar status
+                    const isOnline = data.status.online;
+                    statusIndicator.innerHTML = `
+                        <span class="status-indicator ${isOnline ? 'online' : 'offline'}"></span>
+                        ${isOnline ? 'Online' : 'Offline'}
+                    `;
+                    
+                    // Atualizar detalhes
+                    pingTime.textContent = data.status.pingMs ? `${data.status.pingMs} ms` : 'N/A';
+                    lastChecked.textContent = formatDateTime(data.status.lastChecked);
+                    lastSeen.textContent = data.status.lastSeen ? timeAgo(data.status.lastSeen) : 'Nunca';
+                    pingStatus.textContent = data.status.pingStatus ? 'Sim' : 'Não';
+                    serviceStatus.textContent = data.status.serviceStatus ? 'Ativo' : 'Inativo';
+                    dateAdded.textContent = formatDateTime(data.device.dateAdded);
+                    
+                    // Exibir detalhes
+                    loadingElement.style.display = 'none';
+                    deviceDetails.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert(error.message || 'Erro ao carregar dados do dispositivo');
+                    window.location.href = '/';
+                });
+        }
+        
+        // Função para verificar este dispositivo
+        function checkDevice() {
+            checkBtn.disabled = true;
+            checkBtn.innerHTML = '<span class="loading" style="width: 12px; height: 12px;"></span> Verificando';
+            
+            fetch(`/api/check/${deviceId}`, {
+                method: 'POST'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erro ao verificar dispositivo');
+                }
+                return response.json();
+            })
+            .then(data => {
+                updateDeviceInfo();
+            })
+            .catch(error => {
+                alert(error.message);
+            })
+            .finally(() => {
+                checkBtn.disabled = false;
+                checkBtn.textContent = 'Verificar Agora';
+            });
+        }
+        
+        // Carregar informações do dispositivo quando a página carregar
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDeviceInfo();
+            
+            // Atualiza a cada minuto
+            setInterval(updateDeviceInfo, 60000);
+        });
+    </script>
+</body>
+</html>

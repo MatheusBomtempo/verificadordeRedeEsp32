@@ -1,0 +1,4 @@
+# Outros arquivos Node.js comumente ignorados
+node_modules/
+package-lock.json
+npm-debug.log

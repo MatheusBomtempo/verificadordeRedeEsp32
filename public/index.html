@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de ESP32</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .device-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .device-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        .device-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 0;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .online {
+            background-color: #4CAF50;
+        }
+        .offline {
+            background-color: #F44336;
+        }
+        .status-text {
+            display: flex;
+            align-items: center;
+        }
+        .device-info {
+            margin-top: 10px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            color: #666;
+        }
+        .refresh-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .last-update {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Monitor de ESP32</h1>
+        
+        <div class="refresh-bar">
+            <button id="refresh-btn">Atualizar Dados</button>
+            <span class="last-update" id="last-update">Última atualização: -</span>
+        </div>
+        
+        <div id="device-container">
+            <!-- O card do dispositivo será inserido aqui dinamicamente -->
+        </div>
+
+        <div class="refresh-bar" style="margin-top: 30px;">
+            <button id="check-now-btn">Verificar Agora</button>
+        </div>
+    </div>
+
+    <script>
+        // Função para formatar data e hora
+        function formatDateTime(dateString) {
+            if (!dateString) return 'Nunca';
+            const date = new Date(dateString);
+            return date.toLocaleString('pt-BR');
+        }
+        
+        // Função para calcular tempo decorrido
+        function timeAgo(dateString) {
+            if (!dateString) return 'Nunca';
+            
+            const date = new Date(dateString);
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000); // diferença em segundos
+            
+            if (diff < 60) return `${diff} segundos atrás`;
+            if (diff < 3600) return `${Math.floor(diff / 60)} minutos atrás`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)} horas atrás`;
+            return `${Math.floor(diff / 86400)} dias atrás`;
+        }
+        
+        // Função para criar um card de dispositivo
+        function createDeviceCard(status) {
+            const online = status.online;
+            
+            return `
+                <div class="device-card">
+                    <div class="device-header">
+                        <h2 class="device-name">ESP32-Principal</h2>
+                        <div class="status-text">
+                            <span class="status-indicator ${online ? 'online' : 'offline'}"></span>
+                            ${online ? 'Online' : 'Offline'}
+                        </div>
+                    </div>
+                    <div class="device-info">
+                        <div class="info-row">
+                            <span class="info-label">IP:</span>
+                            <span>192.168.2.169</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Ping:</span>
+                            <span>${status.pingMs ? status.pingMs + ' ms' : 'N/A'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Última verificação:</span>
+                            <span>${formatDateTime(status.lastChecked)}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Visto por último:</span>
+                            <span>${status.lastSeen ? timeAgo(status.lastSeen) : 'Nunca'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Resposta Ping:</span>
+                            <span>${status.pingStatus ? 'Sim' : 'Não'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Serviço Web:</span>
+                            <span>${status.serviceStatus ? 'Ativo' : 'Inativo'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Função para atualizar o dashboard
+        function updateDashboard() {
+            fetch('/api/device')
+                .then(response => response.json())
+                .then(data => {
+                    const deviceContainer = document.getElementById('device-container');
+                    deviceContainer.innerHTML = createDeviceCard(data);
+                    
+                    // Atualiza o horário da última atualização
+                    document.getElementById('last-update').textContent = 
+                        `Última atualização: ${new Date().toLocaleString('pt-BR')}`;
+                })
+                .catch(error => {
+                    console.error('Erro ao obter dados:', error);
+                });
+        }
+        
+        // Atualiza o dashboard quando a página carregar
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDashboard();
+            
+            // Configura a atualização automática a cada 30 segundos
+            setInterval(updateDashboard, 30000);
+            
+            // Configura o botão de atualização manual
+            document.getElementById('refresh-btn').addEventListener('click', updateDashboard);
+            
+            // Configura o botão de verificação imediata
+            document.getElementById('check-now-btn').addEventListener('click', () => {
+                fetch('/api/check-now', { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    updateDashboard();
+                    alert('Verificação realizada com sucesso!');
+                })
+                .catch(error => {
+                    console.error('Erro ao realizar verificação:', error);
+                    alert('Erro ao realizar verificação');
+                });
+            });
+        });
+    </script>
+</body>
+</html>

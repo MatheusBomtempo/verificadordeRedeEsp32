@@ -1,0 +1,15 @@
+{
+    "name": "esp32-multi-monitor",
+    "version": "1.0.0",
+    "description": "Monitor para múltiplos dispositivos ESP32",
+    "main": "app.js",
+    "scripts": {
+      "start": "node app.js",
+      "install-service": "node install-service.js"
+    },
+    "dependencies": {
+      "express": "^4.18.2",
+      "ping": "^0.4.4",
+      "body-parser": "^1.20.1"
+    }
+  }
