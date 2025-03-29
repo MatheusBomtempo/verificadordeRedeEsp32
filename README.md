@@ -2,8 +2,6 @@
 
 Uma ferramenta simples para monitorar o status de dispositivos ESP32 na sua rede local.
 
-![Monitor ESP32](https://i.imgur.com/xGVV5aA.png)
-
 ## O que este monitor faz:
 
 - Verifica se seus dispositivos ESP32 estão online usando ping
